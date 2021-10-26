@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sat Oct  9 23:28:01 2021
-
 @author: Pulin
 """
 
@@ -11,26 +10,53 @@ import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output
 import plotly.express as px
+import plotly.graph_objects as go
 from datetime import date
+#import json
 
 app = dash.Dash(__name__)
 #Reading the data from source
-df = pd.read_excel('owid-covid-data.xlsx' ,sheet_name='Sheet1', usecols="A,B,C,D,E,F,H,I,AU,AZ,K")
+df = pd.read_excel('owid-covid-data.xlsx',sheet_name='Sheet1', usecols="A,B,C,D,E,F,H,I,AU,AZ,K")
+
+df['date'] = pd.to_datetime(df['date'])
 
 #Filtering the data for World
 df_world = df.loc[df['location'] == "World"]
 
-dfc = df.groupby(by = 'continent').mean().reset_index()
+df_sl = df.loc[df['location'] == "Sri Lanka"]
+saarck_list = ['afghanistan','Bangladesh','Bhutan' ,'India' , 'Nepal' , 'Maldives','Pakistan','Sri Lanka']
+
+df_saarck = df[df.location.isin(saarck_list)]
+df_saarck =  df_saarck.groupby(by = 'date').sum().reset_index()
+df_asia = df.loc[df['location'] == 'Asia']
+
+#dfc = df.groupby(by = 'continent').mean().reset_index()
 
 dfd_world = df_world.groupby(by = 'date').sum().reset_index()
+dfd_sl = df_sl.groupby(by = 'date').sum().reset_index()
+
+#Creating the ROW dataframe for the figure 02
+
 
 #data = dict(labels = ['hosp_patients', 'icu_patients','new_deaths'] , values = dfd[dfd['date']=='2021-09-18'][['hosp_patients', 'icu_patients','new_deaths']].values.tolist()[0])
 
 #Default figure for line plot 01
-fig1 = px.line( x =dfd_world['date'], y = dfd_world['new_cases'] , title = "New cases Summary")
+fig1 = px.line( x =dfd_world['date'], y = dfd_world['total_cases'] , title = "New cases Summary")
 
 #Default figure for line plot 02
-fig2 = px.line(dfd_world, x ='date', y = ['new_cases' , 'total_cases'] , title = "New cases Summary")
+fig2 = go.Figure()
+fig2.add_trace(go.Scatter(x=df_world['date'], y=(df_world['total_cases']),
+                    mode='lines',
+                    name='lines'))
+fig2.add_trace(go.Scatter(x=df_sl['date'], y=df_sl['total_cases'],
+                    mode='lines',
+                    name='lines'))
+fig2.add_trace(go.Scatter(x=df_saarck['date'], y=df_saarck['total_cases'],
+                    mode='lines',
+                    name='lines'))
+#fig.add_trace(go.Scatter(x=random_x, y=random_y2,
+#                    mode='markers', name='markers'))
+
 
 #Default Figure for line plot
 
@@ -38,7 +64,13 @@ fig2 = px.line(dfd_world, x ='date', y = ['new_cases' , 'total_cases'] , title =
 #fig3 = px.funnel(data, x = 'values', y = 'labels')
 
 app.layout = html.Div([html.Div([
-        dcc.Dropdown(
+        dcc.Store(id='intermediate-value'),
+        dcc.Store(id='df_world'),
+        dcc.Store(id='df_sl'),
+        dcc.Store(id='df_saarck'),
+        dcc.Store(id='df_asia'),
+        
+        dcc.Dropdown(  #The drop down for the figure 1 line plot
             id='dropdown_line1',
             options=[
                 {'label': 'Total Cases', 'value':'total_cases'},
@@ -47,16 +79,16 @@ app.layout = html.Div([html.Div([
                 {'label': 'Total Deaths', 'value':'total_deaths'}],
             value="total_cases" ),
     
-        dcc.DatePickerRange(
+        dcc.DatePickerRange(  #The date picker for the figure 1 line plot
                 id='my-date-picker-range',
                 min_date_allowed=date(1995, 8, 5),
                 max_date_allowed=date(2021, 5, 19),
                 initial_visible_month=date(2021, 1, 1),
-                start_date = date(2021 ,1,1),
-                end_date=date(2021, 1, 12),
+                start_date = date(2020 ,6,1),
+                end_date= date(2020, 7, 16),
                 end_date_placeholder_text = "End Date",
                 first_day_of_week = 1,
-                display_format = 'MMM Do, YYYY',
+                #display_format = 'MMM Do, YYYY',
                 day_size = 50
                 )
                 ]),
@@ -64,7 +96,26 @@ app.layout = html.Div([html.Div([
             
     dcc.Graph(id = 'line1', figure = fig1),
     
-    html.Div(id = 'howard'),
+    html.Div([
+        dcc.Checklist(
+                id = 'checklist_fig2',
+                options =[
+                        {'label':'Rest of the world','value':'ROW'},
+                        {'label':'Asia','value':'asia'},
+                        {'label':'SAARCK','value':'saarck'}],
+                value =['ROW']),
+                
+        dcc.Dropdown(
+                id='dropdown_line2', #Dropdown selector for figure 2 and variable type like daily or weekly average
+            options=[
+                {'label': 'Daily', 'value':'daily'},
+                {'label': 'Weekly Average', 'value':'weekly_avg'},
+                {'label': 'Monthly Average', 'value':'monthly_avg'},
+                {'label': '7-Day Average', 'value':'7day_avg'},
+                {'label': '14-Day Average', 'value':'14day_avg'}],
+            value="daily" )
+                
+            ]),
     
     dcc.Graph(id = 'scatter' , figure = fig2),
     
@@ -77,7 +128,9 @@ app.layout = html.Div([html.Div([
     Input('my-date-picker-range', 'start_date'),
     Input('my-date-picker-range', 'end_date'))
 
-def line1(var , start_date , end_date):
+def figure1(var , start_date , end_date):
+    
+    #df_world = df.loc[df['location'] == "World"]
     
     after_start_date = df_world["date"] >= start_date
     before_end_date = df_world["date"] <= end_date
@@ -99,8 +152,8 @@ def line1(var , start_date , end_date):
     
     title1 = "{} summary between {} and {}".format(var_title , start_date , end_date)
     
-    fig1 = px.line(x =dfd_world['date'], y = dfd_world[var])
- 
+    fig1 = px.line( x =dfd_world['date'], y = dfd_world[var])    
+    
     fig1.update_layout(
     title=title1,
     xaxis_title="Date",
@@ -117,11 +170,159 @@ def line1(var , start_date , end_date):
     
     
 @app.callback(
-    
-    Input('my-date-picker-range', 'start_date'))
+    Output('scatter', 'figure'),
+    Input('checklist_fig2', 'value'),
+    Input('dropdown_line1','value'),
+    Input('dropdown_line2' , 'value'),
+    Input('my-date-picker-range', 'start_date'),
+    Input('my-date-picker-range', 'end_date'),
+    Input('intermediate-value', 'data'))
 
-def line2(start_date):
-    print(start_date)
+def figure2(check_list , var , cal_type , start_date , end_date, jsonified_cleaned_data):
+    
+    df_ROW_date = pd.read_json(jsonified_cleaned_data, orient='split')
+    
+   
+    ##################################3
+    after_start_date = df_sl["date"] >= start_date
+    before_end_date = df_sl["date"] <= end_date
+    
+    between_two_dates_sl = after_start_date & before_end_date
+    ###########################################
+    after_start_date = df_saarck["date"] >= start_date
+    before_end_date = df_saarck["date"] <= end_date
+    
+    between_two_dates_saarck = after_start_date & before_end_date
+    ###########################################
+    after_start_date = df_asia["date"] >= start_date
+    before_end_date = df_asia["date"] <= end_date
+    
+    between_two_dates_asia = after_start_date & before_end_date
+    #Filtering by the choosen date range
+    
+    df_sl_date = df_sl.loc[between_two_dates_sl]
+    df_saarck_date = df_saarck.loc[between_two_dates_saarck]
+    df_asia_date = df_asia.loc[between_two_dates_asia]
+   
+    
+    #Basic figure with SL line visible and default
+    fig2 = go.Figure()
+    fig2.add_trace(go.Scatter(x=df_sl_date['date'], y=(df_sl_date[var]),
+                    mode='lines',
+                    name='lines'))
+    #For loop to add the requesting lines to the existing graphs with go.trace
+    for data in check_list:
+        
+        if data == 'ROW':
+            fig2.add_trace(go.Scatter(x=df_ROW_date['date'], y=df_ROW_date[var],
+                    mode='lines',
+                    name='lines'))
+        elif data =='asia':
+            fig2.add_trace(go.Scatter(x=df_asia_date['date'], y=df_asia_date[var],
+                    mode='lines',
+                    name='lines'))
+        elif data =='saarck':
+            fig2.add_trace(go.Scatter(x=df_saarck_date['date'], y=df_saarck_date[var],
+                    mode='lines',
+                    name='lines'))
+    
+    return(fig2)
+    
+ 
+    
+    
+@app.callback(
+    Output('intermediate-value', 'data'),
+    Input('dropdown_line1','value'),
+    Input('my-date-picker-range', 'start_date'),
+    Input('my-date-picker-range', 'end_date'))
+
+def row_data(var , start_date , end_date):   
+    
+    after_start_date = df_world["date"] >= start_date
+    before_end_date = df_world["date"] <= end_date
+    
+    between_two_dates_ROW = after_start_date & before_end_date 
+    
+    after_start_date = df_sl["date"] >= start_date
+    before_end_date = df_sl["date"] <= end_date
+    
+    between_two_dates_sl = after_start_date & before_end_date
+    
+    df_sl_date = df_sl.loc[between_two_dates_sl]
+    df_ROW_date = df_world.loc[between_two_dates_ROW]
+    
+    df_sl_date =  df_sl_date.groupby(by = 'date').sum().reset_index()
+    df_ROW_date =  df_ROW_date.groupby(by = 'date').sum().reset_index()
+    
+    df_sl_date = df_sl_date.set_index('date')
+    
+    df_ROW_date['new_cases'] = df_ROW_date['new_cases'] - df_ROW_date['date'].map(df_sl_date['new_cases'])
+    df_ROW_date['total_cases'] = df_ROW_date['total_cases'] - df_ROW_date['date'].map(df_sl_date['total_cases'])
+    df_ROW_date['new_deaths'] = df_ROW_date['new_deaths'] - df_ROW_date['date'].map(df_sl_date['new_deaths'])
+    df_ROW_date['total_deaths'] = df_ROW_date['total_deaths'] - df_ROW_date['date'].map(df_sl_date['total_deaths'])
+    
+    
+    #df_ROW_date = df_ROW_date[['date','diff_new_cases','diff_total_cases','diff_new_deaths','diff_total_deaths']]
+    
+    return(df_ROW_date.to_json(date_format='iso', orient='split'))
+
+@app.callback(
+    Output('df_world', 'data'),
+    Output('df_sl', 'data'),
+    Output('df_asia', 'data'),
+    Output('df_saarck', 'data'),
+    Input('dropdown_line2','value'),
+    Input('my-date-picker-range', 'start_date'),
+    Input('my-date-picker-range', 'end_date'),
+    Input('intermediate-value', 'data'))
+
+def cal_type(cal_type , start_date , end_date,jsonified_cleaned_data): 
+    
+    df_ROW_cal = pd.read_json(jsonified_cleaned_data, orient='split')
+    
+    
+    df_sl_cal = df_sl
+    df_asia_cal = df_asia
+    df_saarck_cal = df_saarck
+    
+    df_ROW_i = df_ROW_cal.set_index('date')
+    df_sl_i = df_sl.set_index('date')
+    df_asia_i = df_asia.set_index('date')
+    df_saarck_i = df_saarck.set_index('date')
+    
+    
+    if cal_type == 'weekly_avg':
+        
+        df_ROW_cal = df_ROW_i[['total_cases','new_cases','new_deaths','total_deaths']].resample("W").mean()
+        df_sl_cal = df_sl_i[['total_cases','new_cases','new_deaths','total_deaths']].resample("W").mean()
+        df_asia_cal = df_asia_i[['total_cases','new_cases','new_deaths','total_deaths']].resample("W").mean()
+        df_saarck_cal = df_saarck_i[['total_cases','new_cases','new_deaths','total_deaths']].resample("W").mean()
+
+    
+    elif cal_type  == "monthly_avg":
+        df_ROW_cal = df_ROW_i[['total_cases','new_cases','new_deaths','total_deaths']].resample("M").mean()
+        df_sl_cal = df_sl_i[['total_cases','new_cases','new_deaths','total_deaths']].resample("M").mean()
+        df_asia_cal = df_asia_i[['total_cases','new_cases','new_deaths','total_deaths']].resample("M").mean()
+        df_saarck_cal = df_saarck_i[['total_cases','new_cases','new_deaths','total_deaths']].resample("M").mean()
+
+    elif cal_type == '7day_avg':
+        df_ROW_cal[['pandas_SMA_3','sd']] = df_ROW_i[['total_cases','new_cases','new_deaths','total_deaths']].rolling(window=7).mean()
+        df_sl_cal[['pandas_SMA_3','sd']] = df_sl_i[['total_cases','new_cases','new_deaths','total_deaths']].rolling(window=7).mean()
+        df_asia_cal[['pandas_SMA_3','sd']] = df_asia_i[['total_cases','new_cases','new_deaths','total_deaths']].rolling(window=7).mean()
+        df_saarck_cal[['pandas_SMA_3','sd']] = df_saarck_i[['total_cases','new_cases','new_deaths','total_deaths']].rolling(window=7).mean()
+    
+    elif cal_type == '14day_avg':
+        df_ROW_cal[['pandas_SMA_3','sd']] = df_ROW_i[['total_cases','new_cases','new_deaths','total_deaths']].rolling(window=14).mean()
+        df_sl_cal[['pandas_SMA_3','sd']] = df_sl_i[['total_cases','new_cases','new_deaths','total_deaths']].rolling(window=14).mean()
+        df_asia_cal[['pandas_SMA_3','sd']] = df_asia_i[['total_cases','new_cases','new_deaths','total_deaths']].rolling(window=14).mean()
+        df_saarck_cal[['pandas_SMA_3','sd']] = df_saarck_i[['total_cases','new_cases','new_deaths','total_deaths']].rolling(window=14).mean()
+           
+    return(df_ROW_cal.to_json(date_format='iso', orient='split'),
+           df_sl_cal.to_json(date_format='iso', orient='split'),
+           df_asia_cal.to_json(date_format='iso', orient='split'),
+           df_saarck_cal.to_json(date_format='iso', orient='split'))
+    
     # =============================================================================
 # #=============================================================================
 #    if (var == 'location'):
