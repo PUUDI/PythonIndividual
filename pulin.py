@@ -12,7 +12,7 @@ from dash.dependencies import Input, Output
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import date
-#import json
+import json
 
 app = dash.Dash(__name__)
 #Reading the data from source
@@ -65,10 +65,7 @@ fig2.add_trace(go.Scatter(x=df_saarck['date'], y=df_saarck['total_cases'],
 
 app.layout = html.Div([html.Div([
         dcc.Store(id='intermediate-value'),
-        dcc.Store(id='df_world'),
-        dcc.Store(id='df_sl'),
-        dcc.Store(id='df_saarck'),
-        dcc.Store(id='df_asia'),
+        dcc.Store(id='df_cal'),
         
         dcc.Dropdown(  #The drop down for the figure 1 line plot
             id='dropdown_line1',
@@ -176,53 +173,38 @@ def figure1(var , start_date , end_date):
     Input('dropdown_line2' , 'value'),
     Input('my-date-picker-range', 'start_date'),
     Input('my-date-picker-range', 'end_date'),
-    Input('intermediate-value', 'data'))
+    Input('df_cal', 'data'))
 
-def figure2(check_list , var , cal_type , start_date , end_date, jsonified_cleaned_data):
+def figure2(check_list , var , cal_type , start_date , end_date, s):
     
-    df_ROW_date = pd.read_json(jsonified_cleaned_data, orient='split')
+    df_cal = json.loads(s)
     
-   
+    #df_ROW_date = df_cal[0]
+    #df_sl_date = df_cal[1]
+    #df_asia_date = df_cal[2]
+    #df_saarck_date = df_cal[3]
     ##################################3
-    after_start_date = df_sl["date"] >= start_date
-    before_end_date = df_sl["date"] <= end_date
     
-    between_two_dates_sl = after_start_date & before_end_date
-    ###########################################
-    after_start_date = df_saarck["date"] >= start_date
-    before_end_date = df_saarck["date"] <= end_date
-    
-    between_two_dates_saarck = after_start_date & before_end_date
-    ###########################################
-    after_start_date = df_asia["date"] >= start_date
-    before_end_date = df_asia["date"] <= end_date
-    
-    between_two_dates_asia = after_start_date & before_end_date
-    #Filtering by the choosen date range
-    
-    df_sl_date = df_sl.loc[between_two_dates_sl]
-    df_saarck_date = df_saarck.loc[between_two_dates_saarck]
-    df_asia_date = df_asia.loc[between_two_dates_asia]
    
     
     #Basic figure with SL line visible and default
     fig2 = go.Figure()
-    fig2.add_trace(go.Scatter(x=df_sl_date['date'], y=(df_sl_date[var]),
+    fig2.add_trace(go.Scatter(x=list(df_cal[1]['date'].values()), y=list(df_cal[1][var].values()),
                     mode='lines',
                     name='lines'))
     #For loop to add the requesting lines to the existing graphs with go.trace
     for data in check_list:
         
         if data == 'ROW':
-            fig2.add_trace(go.Scatter(x=df_ROW_date['date'], y=df_ROW_date[var],
+            fig2.add_trace(go.Scatter(x=list(df_cal[0]['date'].values()), y=list(df_cal[0][var].values()),
                     mode='lines',
                     name='lines'))
         elif data =='asia':
-            fig2.add_trace(go.Scatter(x=df_asia_date['date'], y=df_asia_date[var],
+            fig2.add_trace(go.Scatter(x=list(df_cal[2]['date'].values()), y=list(df_cal[2][var].values()),
                     mode='lines',
                     name='lines'))
         elif data =='saarck':
-            fig2.add_trace(go.Scatter(x=df_saarck_date['date'], y=df_saarck_date[var],
+            fig2.add_trace(go.Scatter(x=list(df_cal[3]['date'].values()), y=list(df_cal[3][var].values()),
                     mode='lines',
                     name='lines'))
     
@@ -268,10 +250,7 @@ def row_data(var , start_date , end_date):
     return(df_ROW_date.to_json(date_format='iso', orient='split'))
 
 @app.callback(
-    Output('df_world', 'data'),
-    Output('df_sl', 'data'),
-    Output('df_asia', 'data'),
-    Output('df_saarck', 'data'),
+    Output('df_cal', 'data'),
     Input('dropdown_line2','value'),
     Input('my-date-picker-range', 'start_date'),
     Input('my-date-picker-range', 'end_date'),
@@ -279,17 +258,36 @@ def row_data(var , start_date , end_date):
 
 def cal_type(cal_type , start_date , end_date,jsonified_cleaned_data): 
     
+    after_start_date = df_sl["date"] >= start_date
+    before_end_date = df_sl["date"] <= end_date
+    
+    between_two_dates_sl = after_start_date & before_end_date
+    ###########################################
+    after_start_date = df_saarck["date"] >= start_date
+    before_end_date = df_saarck["date"] <= end_date
+    
+    between_two_dates_saarck = after_start_date & before_end_date
+    ###########################################
+    after_start_date = df_asia["date"] >= start_date
+    before_end_date = df_asia["date"] <= end_date
+    
+    between_two_dates_asia = after_start_date & before_end_date
+    #Filtering by the choosen date range
+    
+    df_sl_cal = df_sl.loc[between_two_dates_sl]
+    df_saarck_cal = df_saarck.loc[between_two_dates_saarck]
+    df_asia_cal = df_asia.loc[between_two_dates_asia]
+   
+    #################################################33
     df_ROW_cal = pd.read_json(jsonified_cleaned_data, orient='split')
     
     
-    df_sl_cal = df_sl
-    df_asia_cal = df_asia
-    df_saarck_cal = df_saarck
+  
     
     df_ROW_i = df_ROW_cal.set_index('date')
-    df_sl_i = df_sl.set_index('date')
-    df_asia_i = df_asia.set_index('date')
-    df_saarck_i = df_saarck.set_index('date')
+    df_sl_i = df_sl_cal.set_index('date')
+    df_asia_i = df_asia_cal.set_index('date')
+    df_saarck_i = df_saarck_cal.set_index('date')
     
     
     if cal_type == 'weekly_avg':
@@ -307,21 +305,32 @@ def cal_type(cal_type , start_date , end_date,jsonified_cleaned_data):
         df_saarck_cal = df_saarck_i[['total_cases','new_cases','new_deaths','total_deaths']].resample("M").mean()
 
     elif cal_type == '7day_avg':
-        df_ROW_cal[['pandas_SMA_3','sd']] = df_ROW_i[['total_cases','new_cases','new_deaths','total_deaths']].rolling(window=7).mean()
-        df_sl_cal[['pandas_SMA_3','sd']] = df_sl_i[['total_cases','new_cases','new_deaths','total_deaths']].rolling(window=7).mean()
-        df_asia_cal[['pandas_SMA_3','sd']] = df_asia_i[['total_cases','new_cases','new_deaths','total_deaths']].rolling(window=7).mean()
-        df_saarck_cal[['pandas_SMA_3','sd']] = df_saarck_i[['total_cases','new_cases','new_deaths','total_deaths']].rolling(window=7).mean()
+        df_ROW_cal[['total_cases','new_cases','new_deaths','total_deaths']] = df_ROW_cal[['total_cases','new_cases','new_deaths','total_deaths']].rolling(window=7,min_periods=1).mean()
+        df_sl_cal[['total_cases','new_cases','new_deaths','total_deaths']] = df_sl_cal[['total_cases','new_cases','new_deaths','total_deaths']].rolling(window=7,min_periods=1).mean()
+        df_asia_cal[['total_cases','new_cases','new_deaths','total_deaths']] = df_asia_cal[['total_cases','new_cases','new_deaths','total_deaths']].rolling(window=7,min_periods=1).mean()
+        df_saarck_cal[['total_cases','new_cases','new_deaths','total_deaths']] = df_saarck_cal[['total_cases','new_cases','new_deaths','total_deaths']].rolling(window=7,min_periods=1).mean()
     
     elif cal_type == '14day_avg':
-        df_ROW_cal[['pandas_SMA_3','sd']] = df_ROW_i[['total_cases','new_cases','new_deaths','total_deaths']].rolling(window=14).mean()
-        df_sl_cal[['pandas_SMA_3','sd']] = df_sl_i[['total_cases','new_cases','new_deaths','total_deaths']].rolling(window=14).mean()
-        df_asia_cal[['pandas_SMA_3','sd']] = df_asia_i[['total_cases','new_cases','new_deaths','total_deaths']].rolling(window=14).mean()
-        df_saarck_cal[['pandas_SMA_3','sd']] = df_saarck_i[['total_cases','new_cases','new_deaths','total_deaths']].rolling(window=14).mean()
+        df_ROW_cal[['total_cases','new_cases','new_deaths','total_deaths']] = df_ROW_cal[['total_cases','new_cases','new_deaths','total_deaths']].rolling(window=14,min_periods=1).mean()
+        df_sl_cal[['total_cases','new_cases','new_deaths','total_deaths']] = df_sl_cal[['total_cases','new_cases','new_deaths','total_deaths']].rolling(window=14,min_periods=1).mean()
+        df_asia_cal[['total_cases','new_cases','new_deaths','total_deaths']] = df_asia_cal[['total_cases','new_cases','new_deaths','total_deaths']].rolling(window=14,min_periods=1).mean()
+        df_saarck_cal[['total_cases','new_cases','new_deaths','total_deaths']] = df_saarck_cal[['total_cases','new_cases','new_deaths','total_deaths']].rolling(window=14,min_periods=1).mean()
+    
+    df_ROW_cal = df_ROW_cal.reset_index()
+    df_sl_cal = df_sl_cal.reset_index()
+    df_asia_cal = df_asia_cal.reset_index()
+    df_saarck_cal = df_saarck_cal.reset_index()
+    
+    df_ROW_cal['date'] = df_ROW_cal['date'].astype(str)
+    df_sl_cal['date'] = df_sl_cal['date'].astype(str)
+    df_asia_cal['date'] = df_asia_cal['date'].astype(str)
+    df_saarck_cal['date'] = df_saarck_cal['date'].astype(str)
+    
+    
+    list_df = [df_ROW_cal, df_sl_cal,df_asia_cal,df_saarck_cal]
+    s = json.dumps([df.to_dict() for df in list_df])
            
-    return(df_ROW_cal.to_json(date_format='iso', orient='split'),
-           df_sl_cal.to_json(date_format='iso', orient='split'),
-           df_asia_cal.to_json(date_format='iso', orient='split'),
-           df_saarck_cal.to_json(date_format='iso', orient='split'))
+    return(s)
     
     # =============================================================================
 # #=============================================================================
