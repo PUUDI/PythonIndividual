@@ -5,7 +5,9 @@ Created on Sat Oct  9 23:28:01 2021
 """
 
 import pandas as pd
+import numpy as np
 import dash
+import dash_bootstrap_components as dbc
 import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output
@@ -14,11 +16,14 @@ import plotly.graph_objects as go
 from datetime import date
 import json
 
-app = dash.Dash(__name__)
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 #Reading the data from source
-df = pd.read_excel('owid-covid-data.xlsx',sheet_name='Sheet1', usecols="A,B,C,D,E,F,H,I,AU,AZ,K")
+df = pd.read_excel('owid-covid-data.xlsx',sheet_name='Sheet1', usecols="A,B,C,D,E,F,H,I,AU,AZ,K,Z")
 
 df['date'] = pd.to_datetime(df['date'])
+
+#Unique value of location column to use in dropdown selector
+available_location = df['location'].unique()
 
 #Filtering the data for World
 df_world = df.loc[df['location'] == "World"]
@@ -63,20 +68,56 @@ fig2.add_trace(go.Scatter(x=df_saarck['date'], y=df_saarck['total_cases'],
 
 #fig3 = px.funnel(data, x = 'values', y = 'labels')
 
-app.layout = html.Div([html.Div([
+app.layout = html.Div([
+        html.Div([
         dcc.Store(id='intermediate-value'),
         dcc.Store(id='df_cal'),
         
-        dcc.Dropdown(  #The drop down for the figure 1 line plot
-            id='dropdown_line1',
-            options=[
+        dbc.Row(dbc.Col(html.H3("Our Beautiful App Layout"),
+                        width={'size': 6, 'offset': 3},
+                        ),
+                ),
+        
+        dbc.Row([
+                dbc.Col(dcc.Dropdown(id='dropdown_line1',
+                options=[
                 {'label': 'Total Cases', 'value':'total_cases'},
                 {'label': 'New Cases', 'value':'new_cases'},
                 {'label': 'New Deaths', 'value':'new_deaths'},
                 {'label': 'Total Deaths', 'value':'total_deaths'}],
-            value="total_cases" ),
-    
-        dcc.DatePickerRange(  #The date picker for the figure 1 line plot
+                value = 'total_cases'
+                         ),
+
+                 width={'size': 3, "offset": 0, 'order': 1}
+                 
+                         ),
+                dbc.Col(dcc.Checklist(id='checklist_fig2',
+                options =[
+                        {'label':'Rest of the world','value':'ROW'},
+                        {'label':'Asia','value':'asia'},
+                        {'label':'SAARCK','value':'saarck'}],
+                value = 'ROW'
+                         ),
+
+                 width={'size': 3, "offset":0, 'order': 2}
+                 
+                         ),
+
+                 dbc.Col(dcc.Dropdown(id='dropdown_line2',
+                options=[
+                {'label': 'Daily', 'value':'daily'},
+                {'label': 'Weekly Average', 'value':'weekly_avg'},
+                {'label': 'Monthly Average', 'value':'monthly_avg'},
+                {'label': '7-Day Average', 'value':'7day_avg'},
+                {'label': '14-Day Average', 'value':'14day_avg'}],
+                value = 'daily'
+                         ),
+
+                 width={'size': 3, "offset": 0, 'order': 3}
+                 
+                         ),
+
+                dbc.Col(dcc.DatePickerRange(  #The date picker for the figure 1 line plot
                 id='my-date-picker-range',
                 min_date_allowed=date(1995, 8, 5),
                 max_date_allowed=date(2021, 5, 19),
@@ -87,37 +128,52 @@ app.layout = html.Div([html.Div([
                 first_day_of_week = 1,
                 #display_format = 'MMM Do, YYYY',
                 day_size = 50
-                )
-                ]),
-    
-            
-    dcc.Graph(id = 'line1', figure = fig1),
-    
-    html.Div([
-        dcc.Checklist(
-                id = 'checklist_fig2',
-                options =[
-                        {'label':'Rest of the world','value':'ROW'},
-                        {'label':'Asia','value':'asia'},
-                        {'label':'SAARCK','value':'saarck'}],
-                value =['ROW']),
-                
-        dcc.Dropdown(
-                id='dropdown_line2', #Dropdown selector for figure 2 and variable type like daily or weekly average
-            options=[
-                {'label': 'Daily', 'value':'daily'},
-                {'label': 'Weekly Average', 'value':'weekly_avg'},
-                {'label': 'Monthly Average', 'value':'monthly_avg'},
-                {'label': '7-Day Average', 'value':'7day_avg'},
-                {'label': '14-Day Average', 'value':'14day_avg'}],
-            value="daily" )
-                
-            ]),
-    
-    dcc.Graph(id = 'scatter' , figure = fig2),
-    
-    dcc.Graph(id = 'line2', figure = fig2)])
+                        ),
 
+                width={'size': 3, "offset": 0, 'order': 4}
+                         ),
+                    ]
+                    ),
+        dbc.Row([
+                dbc.Col(dcc.Graph(id='line1', figure={}),
+                        width=6#, lg={'size': 6,  "offset": 0, 'order': 'first'}
+                        ),
+                dbc.Col(dcc.Graph(id='scatter', figure={}),
+                        width=6#, lg={'size': 6,  "offset": 0, 'order': 'last'}
+                        ),
+                
+                
+                ]),
+                        
+        dbc.Row([
+                 dbc.Col(dcc.Dropdown(id='dropdown_figure3',
+                options=[{'label': i, 'value': i} for i in available_location],
+                value = 'China'
+                         ),
+
+                 width={'size': 3, "offset": 0, 'order': 3}
+                 
+                         ),           
+            
+                ]),
+        dbc.Row([
+                dbc.Col(dcc.Graph(id='line2', figure={}),
+                        width=6#, lg={'size': 6,  "offset": 0, 'order': 'first'}
+                        ),
+                dbc.Col(dcc.Graph(id='line3', figure={}),
+                        width=6#, lg={'size': 6,  "offset": 0, 'order': 'last'}
+                        ),
+                
+                
+                ])
+                
+            
+                ])
+])
+
+                
+                
+        
 
 @app.callback(
     Output('line1', 'figure'),
@@ -162,6 +218,7 @@ def figure1(var , start_date , end_date):
         color="RebeccaPurple"
         )
     )
+    
     return fig1
     
     
@@ -186,7 +243,8 @@ def figure2(check_list , var , cal_type , start_date , end_date, s):
     ##################################3
     
    
-    
+    empty = start_date
+    empty_2 = end_date    
     #Basic figure with SL line visible and default
     fig2 = go.Figure()
     fig2.add_trace(go.Scatter(x=list(df_cal[1]['date'].values()), y=list(df_cal[1][var].values()),
@@ -207,6 +265,8 @@ def figure2(check_list , var , cal_type , start_date , end_date, s):
             fig2.add_trace(go.Scatter(x=list(df_cal[3]['date'].values()), y=list(df_cal[3][var].values()),
                     mode='lines',
                     name='lines'))
+            
+    
     
     return(fig2)
     
@@ -331,8 +391,87 @@ def cal_type(cal_type , start_date , end_date,jsonified_cleaned_data):
     s = json.dumps([df.to_dict() for df in list_df])
            
     return(s)
+
+
+
+@app.callback(
+    Output('line2', 'figure'),
+    Input('dropdown_figure3','value'),
+    Input('my-date-picker-range', 'start_date'),
+    Input('my-date-picker-range', 'end_date'),
+    Input('intermediate-value', 'data'))
+
+def ratio_fun(location , start_date , end_date,jsonified_cleaned_data):     
     
-    # =============================================================================
+    df['ratio'] = df['new_tests']/df['new_cases'] 
+    
+    df_loc = df.loc[df['location'] == location]
+    df_loc_sl = df.loc[df['location'] == 'Sri Lanka']
+    
+    #Group by to filter by date range
+    df_loc =  df_loc.groupby(by = 'date').sum().reset_index()
+    df_loc_sl =  df_loc_sl.groupby(by = 'date').sum().reset_index()
+    
+    #Filtering by date range
+    after_start_date = df_loc["date"] >= start_date
+    before_end_date = df_loc["date"] <= end_date
+    
+    between_two_dates_loc = after_start_date & before_end_date
+    ###########################################
+    after_start_date = df_loc_sl["date"] >= start_date
+    before_end_date = df_loc_sl["date"] <= end_date
+    
+    between_two_dates_sl = after_start_date & before_end_date
+    
+    df_loc = df_loc.loc[between_two_dates_loc]
+    df_loc_sl = df_loc_sl.loc[between_two_dates_sl]
+    
+    #Drawing the figure
+    fig3 = go.Figure()
+    fig3.add_trace(go.Scatter(x=df_loc_sl['date'], y=df_loc_sl['ratio'],
+                    mode='lines',
+                    name='lines'))
+    #For loop to add the requesting lines to the existing graphs with go.trace
+    
+        
+    fig3.add_trace(go.Scatter(x=df_loc['date'], y=df_loc['ratio'],
+                    mode='lines',
+                    name='lines'))
+    
+    
+    return(fig3)# =============================================================================
+
+@app.callback(
+    Output('line3', 'figure'),
+    Input('dropdown_figure3','value'),
+    Input('my-date-picker-range', 'start_date'),
+    Input('my-date-picker-range', 'end_date'),
+    Input('intermediate-value', 'data'))
+
+def figure4(location , start_date , end_date,jsonified_cleaned_data):  
+    
+    cor = round(df_sl[['new_tests' , 'new_cases']].corr()['new_cases'][0],2)
+    
+    N = 100000
+    
+    fig4 = go.Figure(data=go.Scattergl(
+    x = df_sl['new_tests'],
+    y = df_sl['new_cases'],
+    mode='markers',
+    marker=dict(
+        color=np.random.randn(N),
+        colorscale='Viridis',
+        line_width=1
+    )
+    ))
+
+    fig4.add_annotation(x=max(df_sl['new_tests']), y=max(df_sl['new_cases']),
+            text= "{}".format(cor),
+            showarrow=False,
+            arrowhead=1)
+    
+    
+    return(fig4)
 # #=============================================================================
 #    if (var == 'location'):
 #          dfc = df.groupby(by = 'location').mean().reset_index()
