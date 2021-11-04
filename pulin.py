@@ -63,7 +63,14 @@ fig2.add_trace(go.Scatter(x=df_saarck['date'], y=df_saarck['total_cases'],
 #                    mode='markers', name='markers'))
 
 
-#Default Figure for line plot
+#Style for dcc components
+buttons_style =  {'background-color': 'White',
+            #'height': '200px',
+            #width: 200px;
+            'font-size':'20px',
+            'color': 'Black',
+            'textAlign': 'center'
+            }
 
 
 #fig3 = px.funnel(data, x = 'values', y = 'labels')
@@ -73,7 +80,7 @@ app.layout = html.Div([
         dcc.Store(id='intermediate-value'),
         dcc.Store(id='df_cal'),
         
-        dbc.Row(dbc.Col(html.H3("Our Beautiful App Layout"),
+        dbc.Row(dbc.Col(html.H3("COVID-19 DASHBOARD"),
                         width={'size': 6, 'offset': 3},
                         ),
                 ),
@@ -85,10 +92,15 @@ app.layout = html.Div([
                 {'label': 'New Cases', 'value':'new_cases'},
                 {'label': 'New Deaths', 'value':'new_deaths'},
                 {'label': 'Total Deaths', 'value':'total_deaths'}],
-                value = 'total_cases'
-                         ),
+                value = 'total_cases',
+                style = {
+                        'background-color': 'White',
+                        'textAlign': 'center'
+                        }
+                        
+                         ),style = buttons_style,
 
-                 width={'size': 3, "offset": 0, 'order': 1}
+                 width={'size': 2, "offset": 1, 'order': 1}
                  
                          ),
                 dbc.Col(dcc.Checklist(id='checklist_fig2',
@@ -97,9 +109,9 @@ app.layout = html.Div([
                         {'label':'Asia','value':'asia'},
                         {'label':'SAARCK','value':'saarck'}],
                 value = 'ROW'
-                         ),
+                         ),style =buttons_style,
 
-                 width={'size': 3, "offset":0, 'order': 2}
+                 width={'size': 2, "offset":1, 'order': 2}
                  
                          ),
 
@@ -111,9 +123,9 @@ app.layout = html.Div([
                 {'label': '7-Day Average', 'value':'7day_avg'},
                 {'label': '14-Day Average', 'value':'14day_avg'}],
                 value = 'daily'
-                         ),
+                         ),style = buttons_style,
 
-                 width={'size': 3, "offset": 0, 'order': 3}
+                 width={'size': 2, "offset": 1, 'order': 3}
                  
                          ),
 
@@ -128,9 +140,9 @@ app.layout = html.Div([
                 first_day_of_week = 1,
                 #display_format = 'MMM Do, YYYY',
                 day_size = 50
-                        ),
+                        ),style = buttons_style,
 
-                width={'size': 3, "offset": 0, 'order': 4}
+                width={'size': 2, "offset": 1, 'order': 4}
                          ),
                     ]
                     ),
@@ -162,6 +174,17 @@ app.layout = html.Div([
                         ),
                 dbc.Col(dcc.Graph(id='line3', figure={}),
                         width=6#, lg={'size': 6,  "offset": 0, 'order': 'last'}
+                        ),
+                
+                
+                ]),
+                        
+         dbc.Row([
+                dbc.Col(dcc.Graph(id='bar1', figure={},clear_on_unhover=True),
+                        width={'size': 6, "offset": 0, 'order': 2}#, lg={'size': 6,  "offset": 0, 'order': 'first'}
+                        ),
+                dbc.Col(dcc.Graph(id='bar2',  figure={}),
+                        width = {'size': 6, "offset": 0, 'order': 1}#, lg={'size': 6,  "offset": 0, 'order': 'last'}
                         ),
                 
                 
@@ -209,14 +232,10 @@ def figure1(var , start_date , end_date):
     
     fig1.update_layout(
     title=title1,
+    template='plotly_dark',
     xaxis_title="Date",
     yaxis_title=var_title,
-    legend_title="Legend Title",
-    font=dict(
-        family="Courier New, monospace",
-        size=18,
-        color="RebeccaPurple"
-        )
+    legend_title="Legend Title"
     )
     
     return fig1
@@ -243,8 +262,7 @@ def figure2(check_list , var , cal_type , start_date , end_date, s):
     ##################################3
     
    
-    empty = start_date
-    empty_2 = end_date    
+        
     #Basic figure with SL line visible and default
     fig2 = go.Figure()
     fig2.add_trace(go.Scatter(x=list(df_cal[1]['date'].values()), y=list(df_cal[1][var].values()),
@@ -266,7 +284,8 @@ def figure2(check_list , var , cal_type , start_date , end_date, s):
                     mode='lines',
                     name='lines'))
             
-    
+    fig2.update_layout(title="Figure Title",
+                  template='plotly_dark')
     
     return(fig2)
     
@@ -438,6 +457,8 @@ def ratio_fun(location , start_date , end_date,jsonified_cleaned_data):
                     mode='lines',
                     name='lines'))
     
+    fig3.update_layout(title="Figure Title",
+                  template='plotly_dark')
     
     return(fig3)# =============================================================================
 
@@ -467,18 +488,96 @@ def figure4(location , start_date , end_date,jsonified_cleaned_data):
 
     fig4.add_annotation(x=max(df_sl['new_tests']), y=max(df_sl['new_cases']),
             text= "{}".format(cor),
+            font=dict(
+            family="Courier New, monospace",
+            size=25,
+            color="#ff7f0e"
+            ),
             showarrow=False,
             arrowhead=1)
     
+    fig4.update_layout(title="Figure Title",
+                  template='simple_white')
     
     return(fig4)
-# #=============================================================================
-#    if (var == 'location'):
+
+
+@app.callback(
+    Output('bar1', 'figure'),
+    Input('dropdown_figure3','value'),
+    Input('my-date-picker-range', 'start_date'),
+    Input('my-date-picker-range', 'end_date'),
+    Input('intermediate-value', 'data'),
+    Input('bar2', 'hoverData'),
+    Input('dropdown_line1','value'))
+
+def bar1(location , start_date , end_date,jsonified_cleaned_data,hover_data,var):  # #=============================================================================
+#   
+    after_start_date = df["date"] >= start_date
+    before_end_date = df["date"] <= end_date
+    
+    between_two_dates = after_start_date & before_end_date
+    df_bar = df.loc[between_two_dates]
+    
+    
+    
+    
+    df_cross = pd.crosstab(df_bar.date,df_bar.continent, values = df_bar.new_cases , aggfunc = np.sum)
+# initiate data list for figure
+    trace_index = hover_data["points"][0]["pointIndex"]
+    colors = ['lightslategray',] * 6
+    colors[trace_index] = 'crimson'
+    
+    data = []
+#use for loop on every zoo name to create bar data
+    for index,x in enumerate(df_cross.columns):
+        data.append(go.Bar(name=str(x), x=df_cross.index, y=df_cross[x] , marker_color=colors[index]))
+
+    figure = go.Figure(data)
+    figure.update_layout(barmode = 'stack')
+
+#For you to take a look at the result use
+    #print(hover_data)
+    return(figure)
+    #if (var == 'location'):
 #          dfc = df.groupby(by = 'location').mean().reset_index()
 #          fig = px.scatter(x = dfc['population'], y = dfc['gdp_per_capita'], color = dfc['location'], size = dfc['total_cases_per_million'],hover_name = dfc['location'])
-#          #return fig
-#      else:
-#          dfc = df.groupby(by = 'continent').mean().reset_index()
+@app.callback(
+    Output('bar2', 'figure'),
+    Input('dropdown_figure3','value'),
+    Input('my-date-picker-range', 'start_date'),
+    Input('my-date-picker-range', 'end_date'),
+    Input('bar2', 'hoverData'),
+    Input('dropdown_line1','value'))
+
+def bar2(location , start_date , end_date,hover_data,var): #          #return fig
+    
+    after_start_date = df["date"] >= start_date
+    before_end_date = df["date"] <= end_date
+    
+    between_two_dates = after_start_date & before_end_date
+    df_bar = df.loc[between_two_dates]
+    
+    df_bar =  df_bar.groupby(by = 'continent').sum().reset_index()
+    #df_bar = df_bar.sort_values(var, ascending=False)
+    
+    colors = ['lightslategray',] * 6
+    #colors[trace_index] = 'crimson'
+    
+    
+    fig = go.Figure(data=[go.Bar(
+    y=df_bar['continent'],
+    x=df_bar[var],
+    orientation='h',
+    marker_color=colors # marker color can be a single color value or an iterable
+    )])
+    
+    fig.update_layout(title_text='Least Used Feature')
+    
+    return(fig)
+    #print(trace_index)
+
+    #print(trace_index)       
 #          fig = px.scatter(x = dfc['population'], y = dfc['gdp_per_capita'], color = dfc['continent'], size = dfc['total_cases_per_million'],hover_name = dfc['continent'])
 #          #return fig
 #      return fig
